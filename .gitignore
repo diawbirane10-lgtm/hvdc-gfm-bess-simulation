@@ -1,0 +1,29 @@
+# Generated figures (reproducible from scripts)
+*.png
+*.jpg
+
+# MATLAB auto-generated
+*.asv
+*.autosave
+slprj/
+*.slxc
+codegen/
+
+# Data files (large, reproducible)
+*.mat
+
+# Docs / article
+*.docx
+*.pdf
+
+# Python
+*.py
+__pycache__/
+.venv/
+
+# Markdown
+*.md
+
+# OS
+Thumbs.db
+.DS_Store
