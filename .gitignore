@@ -1,7 +1,3 @@
-# Generated figures (reproducible from scripts)
-*.png
-*.jpg
-
 # MATLAB auto-generated
 *.asv
 *.autosave
@@ -9,20 +5,17 @@ slprj/
 *.slxc
 codegen/
 
-# Data files (large, reproducible)
+# Data files (large, reproducible from scripts)
 *.mat
 
-# Docs / article
+# Docs / article (not for public repo)
 *.docx
 *.pdf
 
-# Python
+# Python helpers (local only)
 *.py
 __pycache__/
 .venv/
-
-# Markdown
-*.md
 
 # OS
 Thumbs.db
