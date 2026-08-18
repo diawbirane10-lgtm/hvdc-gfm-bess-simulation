@@ -47,16 +47,13 @@ The 2 Hz/s value used in the paper is likewise treated as a **study screening be
 
 ## Reviewer-requested BESS evidence
 
-The BESS reaches 99% of its 200 MW discharge rating in about **0.117–0.166 s** in all three scenarios. Energy delivered up to the frequency nadir is only about **0.141–0.144 MWh**, explaining why the nadir improvement is nearly identical (about **1.615–1.616 Hz**) across the tested disturbances: the controller encounters the same power ceiling early in each event.
+The BESS reaches 99% of its 200 MW discharge rating in about **0.117–0.166 s** in all three scenarios. Energy delivered up to the frequency nadir is about **0.141–0.144 MWh**, explaining why the nadir improvement is nearly identical (about **1.615–1.616 Hz**) across the tested disturbances: the controller encounters the same power ceiling early in each event.
 
 A post-review Scenario-B sensitivity sweep changes only the BESS discharge ceiling. In the tested 10 MW increments, **280 MW is the first rating with nadir ≥49.0 Hz**; this is a model-specific sensitivity result, not a universal sizing optimum.
 
 ## Independent software-in-the-loop cross-verification
 
-`python/hvdc_gfm_bess_sil.py` translates the five-state reduced-order equations to Python/SciPy and compares:
-
-- adaptive stiff **BDF**, and
-- independently coded fixed-step **RK4**.
+`python/hvdc_gfm_bess_sil.py` translates the five-state reduced-order equations to Python/SciPy and compares adaptive stiff **BDF** with an independently coded fixed-step **RK4** solver.
 
 An automatic refinement loop tests RK4 time steps of 1 ms, 0.5 ms, 0.2 ms and 0.1 ms. It accepts the first step satisfying pre-defined numerical-consistency tolerances for nadir, RoCoF and peak DC-voltage excursion. The accepted step is **0.2 ms**.
 
@@ -89,12 +86,10 @@ The existing Simulink model remains a separate implementation check. The previou
 │   ├── solver_convergence_loop.csv
 │   ├── solver_cross_validation.csv
 │   └── scenario_B_bess_sizing_sweep.csv
-├── figures/revision/
-│   └── publication-ready SVG figures
 └── REVISION_NOTES.md
 ```
 
-The original MATLAB/Simulink files are retained for traceability. The revision assets explicitly document the notation correction and the independent Python numerical cross-check.
+The original MATLAB/Simulink files are retained for traceability. The revision assets explicitly document the notation correction and the independent Python numerical cross-check. Publication-quality revised figures are distributed with the blinded revision package rather than committed here at this stage.
 
 ## Reproduce the Python revision check
 
