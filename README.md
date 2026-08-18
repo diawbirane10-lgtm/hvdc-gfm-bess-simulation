@@ -1,180 +1,118 @@
-# 3-Terminal VSC-HVDC — Grid-Forming BESS Frequency Stability
+# 3-Terminal VSC-HVDC — Grid-Forming VSM-BESS Frequency Stability
 
-**MATLAB/Simulink simulation study** — frequency stability analysis of a 3-terminal VSC-HVDC network under three N-1 contingency scenarios, comparing a Grid-Following (GFL) baseline against a Grid-Forming (GFM) control strategy using a Battery Energy Storage System (BESS) modeled as a Virtual Synchronous Machine (VSM).
+Reproducible reduced-order study of a **three-terminal VSC-HVDC renewable power system** comparing a passive-BESS **grid-following (GFL)** baseline with a **grid-forming (GFM) Virtual Synchronous Machine (VSM)** controller supported by a **DC-coupled 200 MW / 200 MWh BESS**.
 
-> **Paper under peer review** — submitted to the *Journal of Undergraduate Research International* (JURI, KFUPM) — Ref. JURI-00314-2026-01
+> **JURI manuscript JURI-00314-2026-01 — revision branch.**  
+> The journal requested revisions after peer review. This branch synchronizes the public research code with the revised numerical results. It does **not** claim final publication acceptance.
 
----
+## Study system
 
-## Motivation
+| Quantity | Value |
+|---|---:|
+| System normalization base `Sbase` | 1400 MW |
+| Nominal physical load `Pload0` | 1400 MW |
+| Common DC-bus voltage | 320 kV |
+| Equivalent AC-grid inertia | 3.0 s |
+| BESS | 200 MW / 200 MWh |
+| VSM virtual inertia | 6.0 s |
+| VSM virtual damping | 20 pu |
+| BESS inner-loop time constant | 25 ms |
 
-Large-scale solar and wind integration in the Middle East and North Africa (MENA) region relies on VSC-HVDC corridors to deliver power from remote generation sites to weak mainland AC grids. These grids have low synchronous inertia (H ≈ 3 s), making frequency stability a critical design constraint. This work quantifies how a BESS operating under Grid-Forming / VSM control can suppress frequency deviation, limit RoCoF, and prevent under-frequency load shedding (UFLS) under realistic generation-loss events.
+The revised notation deliberately separates `Sbase` (normalization base) from `Pload0` (nominal load), even though both are 1400 MW in the present operating point.
 
----
+## Contingencies
 
-## Network Topology
-
-```
-STN-1 (Offshore Wind)          STN-2 (DC Bus + BESS)         STN-3 (AC Mainland + Solar)
-  800 MW rectifier  ──── DC 320 kV ────  BESS 200 MW/MWh  ──── inverter ────  1 400 MW weak grid
-                                         VSM Control                            600 MW solar PV
-```
-
-| Parameter | Value |
+| Scenario | Disturbance |
 |---|---|
-| System base | 1 400 MW |
-| DC bus voltage | 320 kV |
-| AC grid inertia H | 3.0 s |
-| Load damping D | 1.5 pu |
-| Governor droop R | 6.7 % |
-| BESS rating | 200 MW / 200 MWh |
-| BESS SOC window | 20 % – 90 % |
-| P–V droop k | 30 MW/kV |
+| A | +280 MW load step (+20%) |
+| B | −400 MW offshore-wind trip |
+| C | −300 MW PV ramp completed in 100 ms |
 
----
+## Revised numerical results
 
-## Control Architecture — Virtual Synchronous Machine (VSM)
+The values below are reproduced by the independent Python/SciPy implementation on this branch.
 
-The BESS converter at STN-2 emulates synchronous machine dynamics. The active-power reference is:
+| Scenario | Mode | Nadir (Hz) | |RoCoF|, 200 ms (Hz/s) | Peak ΔVDC (kV) | 49.0-Hz study threshold crossed? |
+|---|---|---:|---:|---:|---|
+| A | GFL | 47.737 | 1.530 | −9.333 | Yes |
+| A | GFM+BESS | 49.353 | 0.593 | −5.884 | No |
+| B | GFL | 46.768 | 2.186 | −13.333 | Yes |
+| B | GFM+BESS | 48.383 | 1.244 | −9.223 | Yes |
+| C | GFL | 47.576 | 1.212 | −10.000 | Yes |
+| C | GFM+BESS | 49.192 | 0.487 | −4.576 | No |
 
-```
-P_ref = Df · (−Δf / f₀) · Sbase  +  2·H_vsm · (−dΔf/dt / f₀) · Sbase
-```
+**Important correction:** Scenario B remains below the **49.0 Hz study-specific screening threshold** with the 200 MW BESS. Earlier README wording that placed Scenario B above 49 Hz was incorrect.
 
-| VSM Parameter | Value | Description |
-|---|---|---|
-| H_vsm | 6.0 s | Virtual inertia constant |
-| Df | 20.0 pu | Virtual damping gain |
-| τ_b | 25 ms | Inner converter time constant |
+The 2 Hz/s value used in the paper is likewise treated as a **study screening benchmark**, not as a universal grid-code limit.
 
-SOC limits (20 %/90 %) are enforced: injection is blocked below SOC_min and absorption is blocked above SOC_max.
+## Reviewer-requested BESS evidence
 
-The **GFL baseline** keeps BESS passive (dP_bess/dt = 0), relying solely on the governor and P–V droop for frequency regulation.
+The BESS reaches 99% of its 200 MW discharge rating in about **0.117–0.166 s** in all three scenarios. Energy delivered up to the frequency nadir is only about **0.141–0.144 MWh**, explaining why the nadir improvement is nearly identical (about **1.615–1.616 Hz**) across the tested disturbances: the controller encounters the same power ceiling early in each event.
 
----
+A post-review Scenario-B sensitivity sweep changes only the BESS discharge ceiling. In the tested 10 MW increments, **280 MW is the first rating with nadir ≥49.0 Hz**; this is a model-specific sensitivity result, not a universal sizing optimum.
 
-## Contingency Scenarios
+## Independent software-in-the-loop cross-verification
 
-| Scenario | Event | Magnitude | Profile |
-|---|---|---|---|
-| **A** | Load step | +280 MW (+20 %) | Instantaneous |
-| **B** | Wind trip (N-1) | −400 MW | Instantaneous |
-| **C** | Solar cloud pass | −300 MW (−50 %) | Linear ramp, 100 ms |
+`python/hvdc_gfm_bess_sil.py` translates the five-state reduced-order equations to Python/SciPy and compares:
 
----
+- adaptive stiff **BDF**, and
+- independently coded fixed-step **RK4**.
 
-## Key Results
+An automatic refinement loop tests RK4 time steps of 1 ms, 0.5 ms, 0.2 ms and 0.1 ms. It accepts the first step satisfying pre-defined numerical-consistency tolerances for nadir, RoCoF and peak DC-voltage excursion. The accepted step is **0.2 ms**.
 
-### Three-scenario comparison panel
+This loop **does not tune VSM/BESS parameters to obtain a desired stability result**. It refines numerical accuracy only.
 
-![Scenarios 3×3](figures/fig_scenarios_3x3.png)
+Across the six GFL/GFM runs, the maximum BDF/RK4 discrepancies at the accepted step are:
 
-*Rows: frequency (Hz), DC bus voltage at STN-2 (kV), BESS active-power injection (MW). Columns: scenarios A, B, C. Blue dashed = GFL baseline; red solid = GFM+BESS.*
+- frequency nadir: `7.33e-09 Hz`;
+- 200 ms RoCoF: `3.76e-04 Hz/s`;
+- peak ΔVDC: `3.38e-05 kV`.
 
-### Frequency nadir
+The existing Simulink model remains a separate implementation check. The previously available Scenario-B GFM nadir is approximately **48.4 Hz**, versus **48.38 Hz** in the reduced-order simulation. No unexecuted A/C Simulink results are presented as measured data.
 
-![Nadir comparison](figures/fig_nadir_comparison.png)
+## Repository structure
 
-GFM+BESS keeps the frequency nadir above the UFLS threshold (49 Hz) in all three scenarios. GFL baseline triggers load shedding in scenario B.
-
-### Rate of Change of Frequency (RoCoF)
-
-![RoCoF comparison](figures/fig_rocof_comparison.png)
-
-GFM+BESS reduces RoCoF below the NC-HVDC limit (2 Hz/s) across all contingencies through virtual inertia injection in the first 200 ms after the fault.
-
-### Single-scenario detail (Scenario B — wind trip)
-
-| Metric | GFL | GFM+BESS |
-|---|---|---|
-| Frequency nadir (Hz) | < 49.0 ✗ | > 49.0 ✓ |
-| UFLS triggered | Yes | No |
-| RoCoF (Hz/s) | > 2.0 | < 2.0 |
-| BESS peak power | — | ≤ 200 MW |
-
-![Frequency response](figures/fig_frequency_response.png)
-![DC voltage](figures/fig_dc_voltage.png)
-![BESS power](figures/fig_bess_power.png)
-![BESS SOC](figures/fig_soc.png)
-
----
-
-## Repository Structure
-
-```
+```text
 .
-├── hvdc_gfm_bess.slx          # Simulink model (Simscape Electrical, AVM)
-├── hvdc_gfm_bess_sim.m        # Main script — GFL vs GFM, single scenario
-├── hvdc_scenarios.m           # 3-scenario sweep — paper Figures 3–5
-├── sim_postprocess.m          # Post-process Simulink output vs ODE baseline
-├── build_hvdc_simulink.m      # Programmatic Simulink model builder
-├── set_scenario.m             # Workspace parameter setter for Simulink
-├── run_via_mcp.m              # Batch run helper
-└── figures/                   # Generated plots (300 dpi PNG, paper-ready)
-    ├── fig_scenarios_3x3.png
-    ├── fig_nadir_comparison.png
-    ├── fig_rocof_comparison.png
-    ├── fig_frequency_response.png
-    ├── fig_dc_voltage.png
-    ├── fig_bess_power.png
-    └── fig_soc.png
+├── hvdc_gfm_bess.slx
+├── hvdc_gfm_bess_sim.m
+├── hvdc_scenarios.m
+├── set_scenario.m
+├── sim_postprocess.m
+├── run_via_mcp.m
+├── python/
+│   ├── hvdc_gfm_bess_sil.py
+│   └── requirements.txt
+├── results/revision/
+│   ├── performance_metrics.csv
+│   ├── bess_energy_metrics.csv
+│   ├── solver_convergence_loop.csv
+│   ├── solver_cross_validation.csv
+│   └── scenario_B_bess_sizing_sweep.csv
+├── figures/revision/
+│   └── publication-ready SVG figures
+└── REVISION_NOTES.md
 ```
 
----
+The original MATLAB/Simulink files are retained for traceability. The revision assets explicitly document the notation correction and the independent Python numerical cross-check.
 
-## How to Reproduce
+## Reproduce the Python revision check
 
-**Requirements:** MATLAB R2023b or later, Simulink, Simscape Electrical.
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
 
-```matlab
-% 1. Reduced-order ODE model — GFL vs GFM, single 400 MW contingency
-cd matlab_sim
-run('hvdc_gfm_bess_sim.m')
-
-% 2. Three-scenario sweep — regenerates all paper figures
-run('hvdc_scenarios.m')
-
-% 3. Simulink model — open, run (Ctrl+T), then post-process
-open('hvdc_gfm_bess.slx')
-% After simulation completes:
-run('sim_postprocess.m')
+pip install -r python/requirements.txt
+python python/hvdc_gfm_bess_sil.py --out results/revision_reproduced
 ```
 
-All scripts are self-contained. Parameters are defined at the top of each file and documented inline.
+## Scope and limitations
 
----
+This is a **reduced-order dynamic screening study**. It is not an EMT, real-time, hardware-in-the-loop, protection-coordination, converter-switching or grid-code certification model. Parameters are representative rather than calibrated to a specific real HVDC installation.
 
-## ODE Model — State Variables
+## Citation status
 
-The reduced-order model uses 5 states solved with `ode23tb` (stiff solver):
+Manuscript: **JURI-00314-2026-01**, *Grid-Forming Virtual Synchronous Machine Control with DC-Coupled Battery Storage for Frequency Stability in a Multi-Terminal VSC-HVDC Renewable Power System*.
 
-| State | Symbol | Units | Description |
-|---|---|---|---|
-| x(1) | Δf | Hz | Frequency deviation from nominal (50 Hz) |
-| x(2) | ΔV_dc | kV | DC bus voltage deviation from 320 kV |
-| x(3) | P_bess | MW | BESS active power injection |
-| x(4) | SOC | — | Battery state of charge [0, 1] |
-| x(5) | P_gov | MW | Governor primary response power |
-
----
-
-## Citation
-
-If you use this code or build on this work, please cite:
-
-```
-B. Diaw, "Grid-Forming BESS Control for Frequency Stability in a 3-Terminal
-VSC-HVDC Desert Grid," Journal of Undergraduate Research International (JURI),
-KFUPM, 2026. Ref. JURI-00314-2026-01. Under peer review.
-```
-
----
-
-## Author
-
-**Birane Diaw** — Electrical Engineering (LST-IEEA), FST Marrakech, Université Cadi Ayyad  
-[GitHub](https://github.com/diawbirane10-lgtm) · [Portfolio](https://bdiaw.lovable.app)
-
----
-
-*Simulation conducted for academic research purposes. System parameters are representative of MENA/Gulf VSC-HVDC corridors. Not a real grid model.*
+The paper is still in the revision/final-decision process. Please do not cite it as a formally published JURI article until the journal issues final acceptance/publication metadata.
